@@ -10,10 +10,10 @@
 #include <iostream>
 #include <string>
 
-#define AT(x, y, z) universe[(x) * N * N + (y) * N + z]
+using namespace std;
 
-using std::cin, std::cout, std::endl;
-using std::ifstream, std::ofstream;
+// 定义宏
+#define AT(x, y, z) universe[(x) * N * N + (y) * N + z]
 
 // 存活细胞数
 __global__ void population(int N, char *universe, int *result)
@@ -26,6 +26,7 @@ __global__ void population(int N, char *universe, int *result)
     if (index < N * N * N)
         alive = universe[index];
 
+    partialSum[tid] = alive;
     __syncthreads();
 
     // Reducing in shared memory
@@ -166,18 +167,18 @@ int main(int argc, char **argv)
     dim3 gridSize((N + blockSize.x - 1) / blockSize.x, (N + blockSize.y - 1) / blockSize.y, (N + blockSize.z - 1) / blockSize.z);
 
     int start_pop;
-    population<<<gridSize, blockSize>>>(N, device_universe, device_population);
+    population<<<gridSize, blockSize, blockSize.x * blockSize.y * blockSize.z>>>(N, device_universe, device_population);
     cudaMemcpy(&start_pop, device_population, sizeof(int), cudaMemcpyDeviceToHost);
 
-    auto start_time = std::chrono::high_resolution_clock::now();
+    auto start_time = high_resolution_clock::now();
     life3d_run<<<gridSize, blockSize, blockSize.x * blockSize.y * blockSize.z>>>(N, device_universe, T);
     cudaDeviceSynchronize();
-    auto end_time = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> duration = end_time - start_time;
+    auto end_time = high_resolution_clock::now();
+    duration<double> duration = end_time - start_time;
 
     int final_pop;
     cudaMemset(device_population, 0, sizeof(int));
-    population<<<gridSize, blockSize>>>(N, device_universe, device_population);
+    population<<<gridSize, blockSize, blockSize.x * blockSize.y * blockSize.z>>>(N, device_universe, device_population);
     cudaMemcpy(&final_pop, device_population, sizeof(int), cudaMemcpyDeviceToHost);
 
     char *host_result = (char *)malloc(N * N * N);
